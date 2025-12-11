@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Executive Command Center</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg-body: #050505; --bg-card: rgba(20, 20, 20, 0.7); --bg-input: rgba(40, 40, 40, 0.6);
+            --text-main: #e5e5e5; --text-muted: #888; --accent-blue: #3b82f6; 
+            --accent-gold: #f59e0b; --success: #10b981; --danger: #ef4444; --border: 1px solid rgba(255,255,255,0.1); --radius: 20px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main);
+            min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* --- LIVING BACKGROUND --- */
+        .bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; background: #050505; overflow: hidden; }
+        .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.4; animation: float 15s infinite ease-in-out alternate; }
+        .orb-1 { width: 300px; height: 300px; background: var(--accent-blue); top: -50px; left: -50px; }
+        .orb-2 { width: 400px; height: 400px; background: var(--accent-gold); bottom: -100px; right: -100px; animation-duration: 20s; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(30px, 50px) scale(1.1); } 100% { transform: translate(-20px, 20px) scale(0.95); } }
+        .grid-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px); background-size: 25px 25px; opacity: 0.5; }
+        .noise-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.03; pointer-events: none; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+
+        .wrapper { width: 100%; max-width: 460px; margin-bottom: 40px; position: relative; z-index: 2; }
+        .dashboard-card { background-color: var(--bg-card); border: var(--border); border-radius: var(--radius); padding: 25px; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3); }
+
+        /* --- CONTROL BAR --- */
+        .control-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .date-picker-container input { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 8px 12px; border-radius: 10px; font-family: 'Inter', sans-serif; font-weight: 600; cursor: pointer; backdrop-filter: blur(5px); }
+        .action-group { display: flex; gap: 8px; }
+        .action-btn { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: #aaa; width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; transition: 0.2s; backdrop-filter: blur(5px); }
+        .action-btn:hover { background: var(--accent-blue); color: white; border-color: var(--accent-blue); }
+        .btn-life { color: var(--accent-gold); border-color: rgba(245, 158, 11, 0.3); }
+        .btn-life:hover { background: var(--accent-gold); color: black; border-color: var(--accent-gold); }
+
+        /* --- SECTIONS & GRID --- */
+        .section-header { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin: 25px 0 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; display: flex; justify-content: space-between; font-weight: 600; }
+        .section-header:first-of-type { margin-top: 10px; }
+        .wallet-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
+        .wallet-box { background: var(--bg-input); padding: 15px; border-radius: 16px; border: var(--border); text-align: left; position: relative; overflow: hidden; transition: transform 0.2s; }
+        .wallet-box:active { transform: scale(0.98); }
+        .wallet-box.month-net { border-bottom: 3px solid var(--accent-blue); }
+        .wallet-box.month-save { border-bottom: 3px solid var(--success); }
+        .wallet-box.total-wealth { border-bottom: 3px solid #8b5cf6; } 
+        .wallet-box.total-save { border-bottom: 3px solid var(--accent-gold); }
+        .w-label { font-size: 0.7rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; font-weight: 500;}
+        .w-amount { font-size: 1.25rem; font-weight: 700; color: white; letter-spacing: -0.5px; }
+        .chart-wrapper { position: relative; height: 160px; width: 100%; margin-bottom: 25px; display: flex; justify-content: center; }
+
+        /* --- LIFETIME MODAL --- */
+        .lifetime-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: none; justify-content: center; align-items: center; z-index: 200; animation: fadeIn 0.3s ease; }
+        .lifetime-card { background: linear-gradient(160deg, #1f1f1f, #0a0a0a); width: 90%; max-width: 380px; padding: 30px; border-radius: 24px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 60px rgba(0,0,0,0.5); text-align: center; position: relative; }
+        .lifetime-title { font-size: 0.9rem; letter-spacing: 3px; color: var(--accent-gold); margin-bottom: 20px; text-transform: uppercase; font-weight: 600; opacity: 0.9; }
+        .close-life { position: absolute; top: 20px; right: 25px; color: #555; font-size: 1.5rem; cursor: pointer; transition: 0.2s; }
+        .close-life:hover { color: white; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* --- HEALTH CARD (Inside Modal) --- */
+        .health-card { 
+            background: rgba(255,255,255,0.03); border-radius: 16px; padding: 15px; 
+            margin-bottom: 20px; /* Space before grid */
+            border: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; text-align: left; 
+        }
+        .health-info h4 { font-size: 0.7rem; color: #777; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 600; }
+        .health-status { font-size: 0.95rem; font-weight: 700; color: var(--success); }
+        .score-circle { width: 50px; height: 50px; border-radius: 50%; background: #111; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: white; border: 4px solid var(--success); box-shadow: 0 0 15px rgba(0,0,0,0.2); }
+
+        /* --- LOCK SCREEN --- */
+        .pin-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #050505; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .pin-title { color: white; margin-bottom: 20px; font-weight: 400; letter-spacing: 3px; text-transform: uppercase; font-size: 0.9rem; opacity: 0.7; }
+        .pin-display { display: flex; gap: 15px; margin-bottom: 40px; }
+        .pin-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #333; transition: 0.2s; }
+        .pin-dot.active { background: var(--accent-blue); border-color: var(--accent-blue); box-shadow: 0 0 15px var(--accent-blue); }
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; }
+        .num-btn { width: 70px; height: 70px; border-radius: 50%; border: 1px solid #222; background: #111; color: white; font-size: 1.4rem; cursor: pointer; transition: 0.1s; user-select: none; }
+        .num-btn:active, .num-btn.active-key { background: #222; transform: scale(0.92); border-color: #444; }
+        .forgot-link { margin-top: 30px; color: #444; font-size: 0.8rem; text-decoration: none; cursor: pointer; transition: 0.2s; }
+        .forgot-link:hover { color: #888; }
+        .recovery-box { display: none; flex-direction: column; align-items: center; width: 80%; max-width: 300px; }
+        .rec-input { width: 100%; background: #1a1a1a; border: 1px solid #333; color: white; padding: 14px; border-radius: 12px; margin-bottom: 12px; text-align: center; }
+        .rec-btn { width: 100%; background: var(--accent-blue); border: none; padding: 14px; border-radius: 12px; color: white; font-weight: 600; cursor: pointer; }
+        .rec-cancel { margin-top: 15px; background: transparent; border: none; color: #555; cursor: pointer; }
+
+        /* --- FORM & LIST --- */
+        .input-group { margin-bottom: 25px; padding-bottom: 20px; border-bottom: var(--border); }
+        .form-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        input, select { width: 100%; background: var(--bg-input); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 14px; border-radius: 12px; font-family: inherit; font-size: 0.95rem; transition: 0.2s; appearance: none; }
+        input:focus, select:focus { outline: none; border-color: var(--accent-blue); background: #222; }
+        .btn-primary { width: 100%; background: linear-gradient(135deg, var(--accent-blue), #2563eb); color: white; border: none; padding: 16px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 20px rgba(59, 130, 246, 0.25); font-size: 1rem; letter-spacing: 0.5px; }
+        .btn-primary:active { transform: scale(0.98); }
+        .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .list-title { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;}
+        .clear-month-btn { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: var(--danger); font-size: 0.7rem; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: 0.2s; font-weight: 600; }
+        .clear-month-btn:hover { background: var(--danger); color: white; border-color: var(--danger); }
+        .transaction-list { list-style: none; max-height: 250px; overflow-y: auto; padding-right: 5px; }
+        .transaction-list::-webkit-scrollbar { width: 4px; }
+        .transaction-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        .transaction-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .t-left { display: flex; align-items: center; gap: 14px; }
+        .icon-box { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; background: rgba(255,255,255,0.05); }
+        .t-info { display: flex; flex-direction: column; }
+        .t-cat { font-size: 0.7rem; color: #666; margin-bottom: 3px; font-weight: 500;}
+        .t-desc { font-size: 0.95rem; color: #eee; font-weight: 500; }
+        .t-amount { font-weight: 700; font-size: 0.95rem; }
+        .inc { color: var(--success); }
+        .exp { color: var(--text-main); }
+        .sav { color: var(--accent-gold); }
+        .delete-btn { background: none; border: none; color: #333; font-size: 1.4rem; margin-left: 10px; cursor: pointer; transition: color 0.2s;}
+        .delete-btn:hover { color: var(--danger); }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 100; animation: fadeIn 0.2s ease;}
+        .modal-card { background: #121212; padding: 25px; border-radius: 20px; width: 90%; max-width: 350px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8); text-align: center; }
+        .modal-title { color: white; margin-bottom: 15px; font-size: 1.1rem; }
+        .btn-modal { padding: 12px 20px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; flex: 1; margin: 5px; }
+        .btn-cancel { background: #222; color: white; }
+        .btn-confirm { background: var(--danger); color: white; }
+        .policy-card { background: #1a1a1a; padding: 12px; border-radius: 12px; border-left: 4px solid var(--accent-blue); margin-bottom: 10px; position: relative; }
+        .policy-header { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 700; color: white; }
+        .policy-del { position: absolute; top: 10px; right: 10px; color: #444; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="bg-layer">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="grid-overlay"></div>
+    <div class="noise-overlay"></div>
+</div>
+
+<div class="pin-overlay" id="pinScreen">
+    <div id="pinEntryMode" style="display:flex; flex-direction:column; align-items:center;">
+        <h2 class="pin-title" id="pinTitle">SECURE ACCESS</h2>
+        <div class="pin-display"><div class="pin-dot" id="dot1"></div><div class="pin-dot" id="dot2"></div><div class="pin-dot" id="dot3"></div><div class="pin-dot" id="dot4"></div></div>
+        <div class="numpad">
+            <button class="num-btn" data-key="1" onclick="pressPin(1)">1</button><button class="num-btn" data-key="2" onclick="pressPin(2)">2</button><button class="num-btn" data-key="3" onclick="pressPin(3)">3</button>
+            <button class="num-btn" data-key="4" onclick="pressPin(4)">4</button><button class="num-btn" data-key="5" onclick="pressPin(5)">5</button><button class="num-btn" data-key="6" onclick="pressPin(6)">6</button>
+            <button class="num-btn" data-key="7" onclick="pressPin(7)">7</button><button class="num-btn" data-key="8" onclick="pressPin(8)">8</button><button class="num-btn" data-key="9" onclick="pressPin(9)">9</button>
+            <button class="num-btn" style="border:none; background:transparent; cursor:default;"></button><button class="num-btn" data-key="0" onclick="pressPin(0)">0</button><button class="num-btn" data-key="c" style="color:var(--danger); border-color:var(--danger);" onclick="clearPin()">C</button>
+        </div>
+        <p id="pinHint" style="color:#555; margin-top:20px; font-size:0.8rem; min-height:1rem;"></p>
+        <span class="forgot-link" id="forgotLink" onclick="showRecovery()">Forgot PIN?</span>
+    </div>
+    <div id="recoveryMode" class="recovery-box">
+        <h2 class="pin-title">RECOVERY</h2>
+        <p style="color:#aaa; margin-bottom:10px; font-size:0.9rem;" id="recQuestionLabel">Security Question</p>
+        <input type="text" id="recAnswer" class="rec-input" placeholder="Your Answer">
+        <button class="rec-btn" onclick="verifyRecovery()">Verify & Reset</button>
+        <button class="rec-cancel" onclick="hideRecovery()">Cancel</button>
+    </div>
+    <div id="setupMode" class="recovery-box">
+        <h2 class="pin-title">SETUP SECURITY</h2>
+        <p style="color:#777; font-size:0.8rem; margin-bottom:20px; text-align:center; line-height:1.4;">Since this is your first time, set a security question to recover your account if you forget your PIN.</p>
+        <input type="text" id="setupQuestion" class="rec-input" placeholder="Set Question (e.g. First Pet)">
+        <input type="text" id="setupAnswer" class="rec-input" placeholder="Set Answer">
+        <button class="rec-btn" onclick="completeSetup()">Save & Continue</button>
+    </div>
+</div>
+
+<div class="lifetime-overlay" id="lifetimeCard">
+    <div class="lifetime-card">
+        <div class="close-life" onclick="closeLifetime()">&times;</div>
+        <h3 class="lifetime-title">Lifetime Overview</h3>
+        
+        <div class="health-card">
+            <div class="health-info"><h4>Financial Health</h4><div class="health-status" id="health-text">...</div></div>
+            <div class="score-circle" id="health-score">0</div>
+        </div>
+
+        <div class="wallet-grid" style="grid-template-columns: 1fr; gap:20px;">
+            <div class="wallet-box total-wealth">
+                <span class="w-label">Total Net Wealth</span>
+                <div class="w-amount" id="totalBalance">₹0.00</div>
+            </div>
+            <div class="wallet-box total-save">
+                <span class="w-label">Total Lifetime Savings</span>
+                <div class="w-amount" id="totalSavings">₹0.00</div>
+            </div>
+        </div>
+        
+        <div class="chart-wrapper" style="margin-top:25px;">
+            <canvas id="totalChart"></canvas>
+        </div>
+    </div>
+</div>
+
+
+<div class="wrapper">
+    <div class="dashboard-card">
+        
+        <div class="control-bar">
+            <div class="date-picker-container"><input type="month" id="monthPicker" onchange="changeMonth()"></div>
+            <div class="action-group">
+                <button class="action-btn btn-life" onclick="openLifetime()" title="Lifetime Overview">∞</button>
+                <button class="action-btn" onclick="changePinManual()" title="Change PIN">🔑</button>
+                <button class="action-btn" onclick="openInsurance()" title="Insurance Vault">🛡️</button>
+                <button class="action-btn" onclick="lockApp()" title="Lock App">🔒</button>
+            </div>
+        </div>
+
+        <div class="section-header"><span>This Month</span><span id="labelMonth">...</span></div>
+        <div class="wallet-grid">
+            <div class="wallet-box month-net">
+                <span class="w-label">Monthly Net Flow</span>
+                <div class="w-amount" id="monthBalance">₹0.00</div>
+            </div>
+            <div class="wallet-box month-save">
+                <span class="w-label">Monthly Savings</span>
+                <div class="w-amount" id="monthSavings">₹0.00</div>
+            </div>
+        </div>
+        <div class="chart-wrapper"><canvas id="monthlyChart"></canvas></div>
+        
+        <form id="form" class="input-group">
+            <div class="form-row">
+                <select id="type" onchange="updateFormLogic()" style="width: 100%;">
+                    <option value="expense">📉 Expense (Spend)</option>
+                    <option value="income">📈 Income (Earn)</option>
+                    <option value="savings">🔒 To Savings (Save)</option>
+                </select>
+            </div>
+            <div class="form-row">
+                 <select id="category" style="width: 60%;"></select>
+                <input type="number" id="amount" placeholder="Amount" inputmode="decimal" step="0.01" style="width: 40%;" />
+            </div>
+            <div class="form-row">
+                <input type="text" id="text" placeholder="Description / Note" autocomplete="off" />
+            </div>
+            <button class="btn-primary" id="btn-submit">Add Transaction</button>
+        </form>
+
+        <div class="list-header">
+            <span class="list-title">History for <span id="historyMonthLabel">...</span></span>
+            <button class="clear-month-btn" onclick="confirmClearMonth()">Clear Month</button>
+        </div>
+        <ul id="list" class="transaction-list"></ul>
+    </div>
+</div>
+
+<div class="modal-overlay" id="insuranceModal">
+    <div class="modal-card">
+        <h3 class="modal-title">Insurance Vault</h3>
+        <p style="font-size:0.8rem; color:#666; margin-bottom:10px;">Adding a policy auto-deducts the premium.</p>
+        <div class="input-group" style="border:none; margin-bottom:10px;">
+            <input type="text" id="ins-provider" placeholder="Provider" style="margin-bottom:8px;">
+            <div class="form-row"><input type="text" id="ins-type" placeholder="Type"><input type="number" id="ins-amt" placeholder="Premium"></div>
+            <input type="date" id="ins-date" style="margin-bottom:8px;">
+            <button class="btn-primary" onclick="addInsurance()" style="padding:10px;">Add & Pay</button>
+        </div>
+        <div class="insurance-list" id="insuranceList"></div>
+        <button class="btn-modal btn-cancel" onclick="closeInsurance()" style="width:100%; margin-top:15px;">Close Vault</button>
+    </div>
+</div>
+
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-card">
+        <h3 class="modal-title" style="color:var(--danger)">⚠️ Confirm Deletion</h3>
+        <p class="modal-msg">Delete ALL data for <b id="confirmMonthLabel">this month</b>?</p>
+        <div class="modal-actions">
+            <button class="btn-modal btn-cancel" onclick="closeConfirm()">Cancel</button>
+            <button class="btn-modal btn-confirm" onclick="executeClearMonth()">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* --- PIN & SECURITY LOGIC --- */
+    let pinInput = "", userPin = localStorage.getItem('wallet_pin');
+    const pinScreen = document.getElementById('pinScreen'), pinEntryMode = document.getElementById('pinEntryMode');
+    const recoveryMode = document.getElementById('recoveryMode'), setupMode = document.getElementById('setupMode');
+    const pinTitle = document.getElementById('pinTitle'), pinHint = document.getElementById('pinHint'), forgotLink = document.getElementById('forgotLink');
+
+    function checkLockState() {
+        userPin = localStorage.getItem('wallet_pin');
+        pinInput = ""; updatePinDisplay();
+        pinScreen.style.display = 'flex'; pinScreen.style.opacity = '1';
+        if (!userPin) { pinTitle.innerText = "CREATE PIN"; pinHint.innerText = "Set 4-digit code"; forgotLink.style.display = "none"; showMode('pinEntry'); } 
+        else { pinTitle.innerText = "ENTER PIN"; pinHint.innerText = ""; forgotLink.style.display = (localStorage.getItem('wallet_sec_q')) ? "block" : "none"; showMode('pinEntry'); }
+    }
+    function pressPin(num) { if(pinInput.length < 4) { pinInput += num; updatePinDisplay(); if(pinInput.length === 4) processPinEntry(); } }
+    function updatePinDisplay() { for(let i=1; i<=4; i++) { const dot = document.getElementById(`dot${i}`); if(i <= pinInput.length) dot.classList.add('active'); else dot.classList.remove('active'); } }
+    function processPinEntry() {
+        if (!userPin) { localStorage.setItem('wallet_pin', pinInput); userPin = pinInput; showMode('setup'); } 
+        else { if (pinInput === userPin) unlockApp(); else { pinShake(); pinHint.innerText = "Incorrect PIN"; pinHint.style.color = "var(--danger)"; setTimeout(clearPin, 500); } }
+    }
+    function clearPin() { pinInput = ""; updatePinDisplay(); if(userPin) pinHint.innerText = ""; }
+    function completeSetup() { 
+        const q = document.getElementById('setupQuestion').value, a = document.getElementById('setupAnswer').value;
+        if(q && a) { localStorage.setItem('wallet_sec_q', q); localStorage.setItem('wallet_sec_a', a); unlockApp(); } else alert("Please fill both.");
+    }
+    function showRecovery() { document.getElementById('recQuestionLabel').innerText = localStorage.getItem('wallet_sec_q'); showMode('recovery'); }
+    function hideRecovery() { showMode('pinEntry'); document.getElementById('recAnswer').value = ""; }
+    function verifyRecovery() {
+        if (document.getElementById('recAnswer').value.toLowerCase().trim() === localStorage.getItem('wallet_sec_a').toLowerCase().trim()) {
+            localStorage.removeItem('wallet_pin'); userPin = null; document.getElementById('recAnswer').value = ""; alert("Verified. Create new PIN."); checkLockState();
+        } else alert("Incorrect Answer.");
+    }
+    function changePinManual() { if(confirm("Reset PIN?")) { lockApp(); showRecovery(); } }
+    function showMode(mode) { pinEntryMode.style.display = (mode === 'pinEntry') ? 'flex' : 'none'; recoveryMode.style.display = (mode === 'recovery') ? 'flex' : 'none'; setupMode.style.display = (mode === 'setup') ? 'flex' : 'none'; }
+    function unlockApp() { pinScreen.style.opacity = '0'; setTimeout(() => pinScreen.style.display = 'none', 500); }
+    function lockApp() { checkLockState(); }
+    function pinShake() { const d = document.querySelector('.pin-display'); d.style.transform = "translateX(10px)"; setTimeout(() => d.style.transform = "translateX(-10px)", 100); setTimeout(() => d.style.transform = "translateX(0px)", 200); }
+    document.addEventListener('keydown', (e) => {
+        if(pinScreen.style.display === 'none' || document.activeElement.tagName === 'INPUT') return;
+        if(e.key >= '0' && e.key <= '9') { const k = parseInt(e.key); pressPin(k); animateKey(k); } 
+        else if(e.key === 'Backspace' || e.key === 'Escape') { clearPin(); animateKey('c'); }
+    });
+    function animateKey(key) { const b = document.querySelector(`.num-btn[data-key="${key}"]`); if(b) { b.classList.add('active-key'); setTimeout(() => b.classList.remove('active-key'), 150); } }
+
+    /* --- FINANCE LOGIC --- */
+    const categories = { expense: ["Food", "Transport", "Housing", "Bills", "Shopping", "Entertainment", "Insurance", "Health"], income: ["Salary", "Freelance", "Business", "Gift"], savings: ["Emergency Fund", "Investment", "Goal", "Crypto"] };
+    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2 });
+    let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+    let insurance = JSON.parse(localStorage.getItem('insurance')) || [];
+    let monthlyChart = null, totalChart = null;
+    document.getElementById('monthPicker').value = new Date().toISOString().slice(0, 7);
+
+    // Elements
+    const monthPicker = document.getElementById('monthPicker'), balanceEl = document.getElementById('totalBalance'), savingsEl = document.getElementById('totalSavings');
+    const mBalanceEl = document.getElementById('monthBalance'), mSavingsEl = document.getElementById('monthSavings');
+    const listEl = document.getElementById('list'), typeEl = document.getElementById('type'), categoryEl = document.getElementById('category');
+    const textEl = document.getElementById('text'), amountEl = document.getElementById('amount'), btnSubmit = document.getElementById('btn-submit');
+    const historyMonthLabel = document.getElementById('historyMonthLabel'), labelMonth = document.getElementById('labelMonth');
+    const healthText = document.getElementById('health-text'), healthScore = document.getElementById('health-score');
+
+    function init() { updateFormLogic(); updateUI(); checkLockState(); }
+
+    function updateUI() {
+        const selectedMonth = monthPicker.value;
+        historyMonthLabel.innerText = selectedMonth; labelMonth.innerText = selectedMonth;
+
+        let totalWealth = 0, totalSafe = 0, totalInc = 0;
+        let mWealth = 0, mSafe = 0, mExp = 0, mInc = 0;
+
+        // 1. Calculate All Time
+        transactions.forEach(t => {
+            const amt = Math.abs(t.amount);
+            if (t.type === 'income') { totalWealth += amt; totalInc += amt; }
+            else if (t.type === 'expense') totalWealth -= amt;
+            else if (t.type === 'savings') { totalWealth -= amt; totalSafe += amt; }
+        });
+
+        // 2. Calculate Monthly
+        const monthTrans = transactions.filter(t => (new Date(t.id).toISOString().slice(0, 7) === selectedMonth));
+        monthTrans.forEach(t => {
+            const amt = Math.abs(t.amount);
+            if (t.type === 'income') { mWealth += amt; mInc += amt; }
+            else if (t.type === 'expense') { mWealth -= amt; mExp += amt; }
+            else if (t.type === 'savings') { mWealth -= amt; mSafe += amt; }
+        });
+
+        // Update Lifetime (Hidden by default, updated for modal)
+        balanceEl.innerText = formatter.format(totalWealth); savingsEl.innerText = formatter.format(totalSafe);
+        
+        // Update Monthly (Visible)
+        mBalanceEl.innerText = formatter.format(mWealth); mSavingsEl.innerText = formatter.format(mSafe);
+        calculateHealth(totalWealth, totalSafe, totalInc);
+
+        listEl.innerHTML = "";
+        if(monthTrans.length === 0) listEl.innerHTML = '<li style="text-align:center; color:#555; padding:20px;">No data for this month</li>';
+        else {
+            monthTrans.sort((a,b) => b.id - a.id).forEach(t => {
+                const amtFormatted = formatter.format(Math.abs(t.amount)).replace('₹', '');
+                let sign, cssClass, icon;
+                if(t.type === 'income') { sign = '+'; cssClass = 'inc'; icon = '📈'; } 
+                else if (t.type === 'expense') { sign = '-'; cssClass = 'exp'; icon = '📉'; } 
+                else { sign = '→'; cssClass = 'sav'; icon = '🔒'; }
+                const li = document.createElement('li'); li.className = 'transaction-item';
+                li.innerHTML = `<div class="t-left"><div class="icon-box">${icon}</div><div class="t-info"><span class="t-desc">${t.text}</span><span class="t-cat">${t.category}</span></div></div><div style="display:flex; align-items:center;"><span class="t-amount ${cssClass}">${sign}₹${amtFormatted}</span><button class="delete-btn" onclick="removeID(${t.id})">&times;</button></div>`;
+                listEl.appendChild(li);
+            });
+        }
+        updateMonthlyChart(mExp, mSafe, mInc);
+        // Only update total chart if modal is open to save resources
+        if(document.getElementById('lifetimeCard').style.display === 'flex') updateTotalChart(totalWealth, totalSafe);
+    }
+
+    function calculateHealth(balance, savings, income) {
+        if (income === 0) { healthScore.innerText = "-"; healthText.innerText = "No Data"; return; }
+        const retained = balance + savings;
+        let score = Math.round((retained / income) * 100); score = Math.max(0, Math.min(100, score));
+        healthScore.innerText = score;
+        if (score >= 80) { healthText.innerText = "💎 Diamond Status"; healthText.style.color = "#10b981"; healthScore.style.borderColor = "#10b981"; } 
+        else if (score >= 50) { healthText.innerText = "🛡️ Gold Status"; healthText.style.color = "#f59e0b"; healthScore.style.borderColor = "#f59e0b"; } 
+        else if (score >= 20) { healthText.innerText = "⚠️ Warning"; healthText.style.color = "#f97316"; healthScore.style.borderColor = "#f97316"; } 
+        else { healthText.innerText = "🚨 Critical"; healthText.style.color = "#ef4444"; healthScore.style.borderColor = "#ef4444"; }
+    }
+
+    function addTransaction(e) {
+        e.preventDefault(); if (textEl.value.trim() === '' || amountEl.value.trim() === '') return;
+        transactions.push({ id: Date.now(), text: textEl.value, amount: +amountEl.value, category: categoryEl.value, type: typeEl.value });
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        if(monthPicker.value !== new Date().toISOString().slice(0, 7)) monthPicker.value = new Date().toISOString().slice(0, 7);
+        updateUI(); textEl.value = ''; amountEl.value = '';
+    }
+
+    function changeMonth() { updateUI(); }
+    function removeID(id) { transactions = transactions.filter(t => t.id !== id); localStorage.setItem('transactions', JSON.stringify(transactions)); updateUI(); }
+    function confirmClearMonth() { document.getElementById('confirmMonthLabel').innerText = monthPicker.value; document.getElementById('confirmModal').style.display = 'flex'; }
+    function closeConfirm() { document.getElementById('confirmModal').style.display = 'none'; }
+    function executeClearMonth() {
+        const sm = monthPicker.value;
+        transactions = transactions.filter(t => (new Date(t.id).toISOString().slice(0, 7) !== sm));
+        localStorage.setItem('transactions', JSON.stringify(transactions)); closeConfirm(); updateUI();
+    }
+    
+    // Insurance
+    function openInsurance() { renderInsurance(); document.getElementById('insuranceModal').style.display = 'flex'; }
+    function closeInsurance() { document.getElementById('insuranceModal').style.display = 'none'; }
+    function addInsurance() {
+        const prov = document.getElementById('ins-provider').value, type = document.getElementById('ins-type').value, amt = +document.getElementById('ins-amt').value, dateVal = document.getElementById('ins-date').value;
+        if(!prov || !amt) return;
+        insurance.push({ id: Date.now(), provider: prov, type: type, premium: amt, date: dateVal });
+        localStorage.setItem('insurance', JSON.stringify(insurance));
+        transactions.push({ id: dateVal ? new Date(dateVal).getTime() : Date.now(), text: `Premium: ${prov}`, amount: amt, category: "Insurance", type: "expense" });
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        if(dateVal) monthPicker.value = dateVal.slice(0, 7);
+        document.getElementById('ins-provider').value = ""; document.getElementById('ins-amt').value = ""; renderInsurance(); updateUI();
+    }
+    function renderInsurance() {
+        const list = document.getElementById('insuranceList'); list.innerHTML = "";
+        if(insurance.length === 0) list.innerHTML = "<p style='color:#666; text-align:center;'>No policies</p>";
+        else insurance.forEach(p => { list.innerHTML += `<div class="policy-card"><div class="policy-header"><span>${p.provider}</span><span>₹${p.premium}</span></div><div class="policy-sub">${p.type} • Due: ${p.date||'N/A'}</div><span class="policy-del" onclick="deleteInsurance(${p.id})">&times;</span></div>`; });
+    }
+    function deleteInsurance(id) { insurance = insurance.filter(i => i.id !== id); localStorage.setItem('insurance', JSON.stringify(insurance)); renderInsurance(); }
+
+    function updateFormLogic() {
+        const type = typeEl.value;
+        if(type === 'income') { btnSubmit.style.background = "linear-gradient(135deg, #10b981, #059669)"; btnSubmit.innerText = "Add Income"; } 
+        else if (type === 'expense') { btnSubmit.style.background = "linear-gradient(135deg, #3b82f6, #2563eb)"; btnSubmit.innerText = "Add Expense"; } 
+        else { btnSubmit.style.background = "linear-gradient(135deg, #f59e0b, #d97706)"; btnSubmit.innerText = "Transfer to Vault"; }
+        categoryEl.innerHTML = ""; categories[type].forEach(cat => { const opt = document.createElement('option'); opt.value = cat; opt.innerText = cat; categoryEl.appendChild(opt); });
+    }
+
+    // --- CHART FUNCTIONS ---
+    function updateMonthlyChart(mExp, mSafe, mInc) {
+        const ctx1 = document.getElementById('monthlyChart').getContext('2d');
+        if(monthlyChart) monthlyChart.destroy();
+        if(mExp===0 && mSafe===0 && mInc===0) monthlyChart = new Chart(ctx1, { type: 'doughnut', data: { labels: ['No Data'], datasets: [{ data: [1], backgroundColor: ['#333'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { legend: { display: false } } } });
+        else monthlyChart = new Chart(ctx1, { type: 'doughnut', data: { labels: ['Expenses', 'Savings', 'Income'], datasets: [{ data: [mExp, mSafe, mInc], backgroundColor: ['#3b82f6', '#f59e0b', '#10b981'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right', labels: { color: '#888', font: { size: 10 }, boxWidth: 10 } } } } });
+    }
+
+    // --- LIFETIME MODAL LOGIC ---
+    function openLifetime() {
+        document.getElementById('lifetimeCard').style.display = 'flex';
+        updateUI(); // Triggers calc
+        // Manually trigger total chart update
+        const wealth = parseFloat(balanceEl.innerText.replace(/[^0-9.-]+/g,""));
+        const savings = parseFloat(savingsEl.innerText.replace(/[^0-9.-]+/g,""));
+        updateTotalChart(wealth, savings);
+    }
+    function closeLifetime() { document.getElementById('lifetimeCard').style.display = 'none'; }
+
+    function updateTotalChart(totalWealth, totalSafe) {
+        const ctx2 = document.getElementById('totalChart').getContext('2d');
+        if(totalChart) totalChart.destroy();
+        if(totalWealth===0 && totalSafe===0) totalChart = new Chart(ctx2, { type: 'doughnut', data: { labels: ['No Data'], datasets: [{ data: [1], backgroundColor: ['#333'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { legend: { display: false } } } });
+        else totalChart = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Wealth', 'Savings'], datasets: [{ data: [totalWealth, totalSafe], backgroundColor: ['#8b5cf6', '#f59e0b'], borderWidth: 0, hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right', labels: { color: '#888', font: { size: 10 }, boxWidth: 10 } } } } });
+    }
+
+    document.getElementById('form').addEventListener('submit', addTransaction);
+    init();
+</script>
+</body>
+</html>
